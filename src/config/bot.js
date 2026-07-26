@@ -25,7 +25,7 @@ export const botConfig = {
       {
         name: " ", // required by Discord API, not shown in the client
         state: "hi uno",     // this is what people actually see
-        type: 1,               // Custom
+        type: 4,               // Custom
       },
     ],
   },
