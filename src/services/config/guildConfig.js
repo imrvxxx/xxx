@@ -1,15 +1,35 @@
 // guildConfig.js — the only module that should read/write guild configuration.
 
 import { GUILD_CONFIG_DEFAULTS } from '../../config/guild/guildConfigDefaults.js';
+import { getCommandPrefix } from '../../config/bot.js';
 import { readGuildConfig, writeGuildConfig } from '../../utils/database/guildConfigStorage.js';
 import { normalizeGuildConfig, validateGuildConfigOrThrow } from '../../utils/schemas.js';
 import { createError, ErrorTypes, wrapServiceBoundary } from '../../utils/errorHandler.js';
 
 export { GUILD_CONFIG_DEFAULTS };
 
+// Prefixes that used to be hardcoded defaults. If a guild config still has one
+// of these stored (from before the environment PREFIX was changed), it should
+// be treated as "unset" and fall back to the current environment default
+// instead of silently overriding it forever.
+const LEGACY_DEFAULT_PREFIXES = ['x'];
+
+/**
+ * Migrates a stored guild prefix so that legacy hardcoded defaults don't
+ * override the current environment PREFIX. Guilds that have explicitly set
+ * a custom (non-legacy) prefix keep their choice.
+ */
+function migrateGuildPrefix(config) {
+    if (config && LEGACY_DEFAULT_PREFIXES.includes(config.prefix)) {
+        return { ...config, prefix: getCommandPrefix() };
+    }
+    return config;
+}
+
 export const getGuildConfig = wrapServiceBoundary(async function getGuildConfig(client, guildId, context = {}) {
     const config = await readGuildConfig(client, guildId, context);
-    return normalizeGuildConfig(config, GUILD_CONFIG_DEFAULTS);
+    const normalized = normalizeGuildConfig(config, GUILD_CONFIG_DEFAULTS);
+    return migrateGuildPrefix(normalized);
 }, {
     service: 'guildConfigService',
     operation: 'getGuildConfig',
